@@ -9,7 +9,7 @@ import argparse
 import random
 
 from data.handler import DataHandler
-from ml.supervised.classes.classifier.random_id3_forest import RandomID3Forest
+from ml.supervised.classes.classifier.logistic_neural_network import LogisticNeuralNetwork
 from ml.supervised.evaluation import crossvalidation, get_statistics
 
 
@@ -41,15 +41,12 @@ if __name__ == '__main__':
     logger = setup_logger()
 
     supported_data_sets = ["benchmark", "diabetes", "wine", "ionosphere", "cancer"]
-    supported_algorithms = ["random_id3_forest"]
     supported_discretizations = ["mean", "information_gain", "quartiles"]
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--verbose", help="enables debugging", action="store_true")
     parser.add_argument("--data_set", type=str, help="the data set to test. Options are " + str(supported_data_sets))
-    parser.add_argument("--algorithm", type=str, help="the algorithm to use. Options are " + str(supported_algorithms))
     parser.add_argument("--seed", type=int, help="the seed to consider in random numbers generation")
-    parser.add_argument("--ntree", type=int, default=10, help="how many trees to generate. Defaults to 10")
     parser.add_argument("--discretization", type=str, default="mean", help="the method to use in discretization. Options are " + str(supported_discretizations))
 
     args = parser.parse_args()
@@ -69,7 +66,7 @@ if __name__ == '__main__':
 
             if args.data_set.strip() == "benchmark":
                 filename = "sets/benchmark.csv"
-                delimiter = ";"
+                delimiter = ","
                 class_attr = "Joga"
 
             elif args.data_set.strip() == "diabetes":
@@ -107,9 +104,7 @@ if __name__ == '__main__':
 
             print("Processing...")
 
-            if args.algorithm in supported_algorithms:
-                if args.algorithm == "random_id3_forest":
-                    print(get_statistics(crossvalidation(10, data_handler, RandomID3Forest(args.ntree))))
+            LogisticNeuralNetwork(data_handler, [2, 2, 2], [[[0.4, 0.1, 0.2], [0.3, 0.2, 0.3]], [[0.7, 0.5, 0.6], [0.1, 0.1, 0.1]]])
 
             print("See the log output is in output.log")
 
