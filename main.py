@@ -104,9 +104,7 @@ if __name__ == '__main__':
 
             print("Processing...")
 
-            LogisticNeuralNetwork(data_handler, [2, 2, 2], [[[0.4, 0.1, 0.2], [0.3, 0.2, 0.3]], [[0.7, 0.5, 0.6], [0.1, 0.1, 0.1]]])
-
-            print("See the log output is in output.log")
+            LogisticNeuralNetwork(data_handler, [2, 2, 2], [[[0.5, 0.5, 0.5], [0.1, 0.1, 0.1]], [[0.5, 0.5, 0.5], [0.1, 0.1, 0.1]]])
 
         else:
             raise AttributeError("Data set is not supported!")

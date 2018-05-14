@@ -16,7 +16,7 @@ class LogisticNeuralNetwork(Classifier):
 
     def __init__(self, data_handler, layers, initial_weights, regularization_factor=0):
         self.__layers = list(layers)
-        self.__weights = np.array(initial_weights)
+        self.__weights = initial_weights
         self.__regularization_factor = regularization_factor
 
         activations = []
@@ -34,8 +34,9 @@ class LogisticNeuralNetwork(Classifier):
         self.__train(data_handler)
 
     def __train(self, data_handler):
-        self.__cost(data_handler)
-        self.__backpropagation(data_handler)
+        print("Cost: " + str(self.__cost(data_handler)))
+
+        #self.__backpropagation(data_handler)
 
     def __cost(self, data_handler):
         instances = data_handler.as_instances()
@@ -71,7 +72,7 @@ class LogisticNeuralNetwork(Classifier):
         self.__activations[0].insert(0, 1.0)
 
         for i_hl in range(1, len(self.__activations) - 1):
-            terms = self.__weights[i_hl - 1] * np.array([self.__activations[i_hl - 1], ] * self.__layers[i_hl])
+            terms = np.array(self.__weights[i_hl - 1]) * np.array([self.__activations[i_hl - 1], ] * self.__layers[i_hl])
             zs = np.sum(terms, axis=1).tolist()
 
             # Applies sigmoid
