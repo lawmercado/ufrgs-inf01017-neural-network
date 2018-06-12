@@ -13,6 +13,7 @@ class LogisticNeuralNetwork(Classifier):
     __weights = []
     __regularization_factor = 0
     __activations = []
+    __alpha = 0.001
 
     def __init__(self, data_handler, layers, initial_weights, regularization_factor=0):
         self.__layers = list(layers)
@@ -94,7 +95,53 @@ class LogisticNeuralNetwork(Classifier):
         return 1 / (1 + math.exp(-z))
 
     def __backpropagation(self, data_handler):
-        raise NotImplementedError
+        instances = data_handler.as_instances()
+        deltas = []
+        d = [[] for i in range(1, len(self.__activations) - 1)]
+        p = [[] for i in range(1, len(self.__activations) - 1)]
+
+        for instance in instances:
+            fw = self.__propagate(instance[0])
+
+            out_deltas = []
+            for output in fw:
+                out_deltas.insert(output - instance[1])
+
+            deltas[0] = out_deltas
+
+            for i_hl in range(len(self.__activations) - 1, 2):
+                weights = np.array(self.__weights[i_hl - 1])
+                np.transpose(weights)
+
+                d_kplus1 = np.array(deltas[len(deltas) - 1])
+                terms = weights * d_kplus1
+                terms_sum = np.sum(terms, axis=1)
+
+                a_terms = np.ones((len(self.__activations) - 1)) - np.array(self.__activations[i_hl - 1])
+
+                delta_hl = np.array(terms_sum * a_terms).tolist()
+                delta_hl.pop()
+                deltas.insert(delta_hl)
+
+            deltas.reverse()
+
+            for i_hl in range(len(self.__activations) - 1, 1):
+                d_aux = np.array(deltas[i_hl]) * np.array(self.__activations[i_hl - 1])
+                d_aux = np.array(d[i_hl - 1]) + d_aux
+                d[i_hl - 1] = d_aux.tolist()
+
+        for i_hl in range(len(self.__activations) - 1, 1):
+            p_aux = np.array(self.__weights[i_hl - 1])
+            p_aux[:, 0] = 0
+            p_aux = p_aux * self.__regularization_factor
+            # p[i_hl - 1] = p_aux.tolist()
+
+            d_aux = (np.array(d[i_hl - 1]) + p_aux) / len(instances)
+            d[i_hl - 1] = d_aux.tolist()
+
+        for i_hl in range(len(self.__activations) - 1, 1):
+            weights = np.array(self.__weights[i_hl - 1]) - np.array(d[i_hl - 1]) * self.__alpha
+            self.__weights[i_hl - 1] = weights
 
     def classify(self, test_data_handler, test_instances):
         raise NotImplementedError
