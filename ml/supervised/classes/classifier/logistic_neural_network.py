@@ -55,6 +55,9 @@ class LogisticNeuralNetwork(Classifier):
 
         j = np.sum(j)/len(instances)
 
+        print("Activations:")
+        print(self.__activations)
+
         s = 0
 
         for weights_per_layer in self.__weights:
@@ -103,13 +106,22 @@ class LogisticNeuralNetwork(Classifier):
         return 1 / (1 + math.exp(-z))
 
     def __backpropagation(self, data_handler):
+        n_layers = len(self.__activations)
+
+        print("Starting backpropagation")
         instances = data_handler.as_instances()
-        deltas = []
+        print("Instances:")
+        print(instances)
         d = [[] for i in range(1, len(self.__activations) - 2)]
 
         for instance in instances:
+            print("Instance:")
+            print(instance[0])
             fw = self.__propagate(instance[0])
+            print("Output after propagating one instance:")
+            print(fw)
 
+            deltas = []
             deltas_ol = []
             for output in fw:
                 deltas_ol.append(output - instance[1])
@@ -119,38 +131,80 @@ class LogisticNeuralNetwork(Classifier):
             for i_hl in range(len(self.__activations) - 2, 2):
                 weights = np.array(self.__weights[i_hl])
                 weights = np.transpose(weights)
+                print("Weights layer")
+                print(i_hl)
+                print(weights)
 
                 d_kplus1 = np.array(deltas[len(deltas) - 1])
+                print("delta k+1")
+                print(d_kplus1)
                 # terms = weights * d_kplus1
                 # terms_sum = np.sum(terms, axis=1)
                 terms = weights.dot(d_kplus1)
+                print("Weights x Delta_k+1:")
+                print(terms)
 
+                print("a:")
+                print(self.__activations[i_hl])
                 a_terms = np.ones((len(self.__activations[i_hl]))) - np.array(self.__activations[i_hl])
+                print("1 - a:")
+                print(a_terms)
+                a_terms = a_terms * np.array(self.__activations[i_hl])
+                print("a x (1 - a):")
+                print(a_terms)
 
                 # delta_hl = np.array(terms_sum * a_terms).tolist()
                 delta_hl = np.array(terms * a_terms).tolist()
-                delta_hl.pop()
+                print("Weights x Delta_k+1 x a x (1 - a):")
+                print(delta_hl)
+                delta_hl.pop(0)
                 deltas.append(delta_hl)
 
             deltas.reverse()
+            print("Node error:")
+            print(deltas)
 
             for i_hl in range(len(self.__activations) - 2, 1):
+                print("d(k+1):")
+                print(deltas[i_hl + 1])
+                print("a(k):")
+                print(self.__activations[i_hl])
                 d_aux = np.array(deltas[i_hl + 1]) * np.array(self.__activations[i_hl])
+                print("d(k+1) x a(k)")
+                print(d_aux)
+                print("D(k):")
+                print(d[i_hl])
                 d_aux = np.array(d[i_hl]) + d_aux
                 d[i_hl] = d_aux.tolist()
+                print("D(k) updated:")
+                print(d[i_hl])
 
         for i_hl in range(len(self.__activations) - 2, 1):
             p_aux = np.array(self.__weights[i_hl])
             p_aux[:, 0] = 0
+            print("P(k) with first column nullified:")
+            print(p_aux)
             p_aux = p_aux * self.__regularization_factor
+            print("P(k) x Regularization Factor:")
+            print(p_aux)
             # p[i_hl] = p_aux.tolist()
 
+            print("D(k):")
+            print(d[i_hl])
+            print("n:")
+            print(len(instances))
             d_aux = (np.array(d[i_hl]) + p_aux) / len(instances)
             d[i_hl] = d_aux.tolist()
+            print("D(k) updated:")
+            print(d[i_hl])
 
         for i_hl in range(len(self.__activations) - 2, 1):
+            print("Old weights:")
+            print(self.__weights[i_hl])
             weights = np.array(self.__weights[i_hl]) - np.array(d[i_hl]) * self.__alpha
             self.__weights[i_hl] = weights
+            print("New weights:")
+            print(self.__weights[i_hl])
 
     def classify(self, test_data_handler, test_instances):
         raise NotImplementedError
