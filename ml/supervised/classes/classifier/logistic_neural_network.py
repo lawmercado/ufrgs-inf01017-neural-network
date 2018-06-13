@@ -37,7 +37,7 @@ class LogisticNeuralNetwork(Classifier):
     def __train(self, data_handler):
         print("Cost: " + str(self.__cost(data_handler)))
 
-        #self.__backpropagation(data_handler)
+        self.__backpropagation(data_handler)
 
     def __cost(self, data_handler):
         instances = data_handler.as_instances()
@@ -73,8 +73,12 @@ class LogisticNeuralNetwork(Classifier):
         self.__activations[0].insert(0, 1.0)
 
         for i_hl in range(1, len(self.__activations) - 1):
-            terms = np.array(self.__weights[i_hl - 1]) * np.array([self.__activations[i_hl - 1], ] * self.__layers[i_hl])
-            zs = np.sum(terms, axis=1).tolist()
+            # terms = np.array(self.__weights[i_hl - 1]) * np.array([self.__activations[i_hl - 1], ] * self.__layers[i_hl])
+            # zs = np.sum(terms, axis=1).tolist()
+            weights = np.array(self.__weights[i_hl - 1])
+            act = np.array(self.__activations[i_hl - 1])
+            terms = weights.dot(act)
+            zs = terms.tolist()
 
             # Applies sigmoid
             self.__activations[i_hl] = [self.__activation(z) for z in zs]
@@ -84,8 +88,12 @@ class LogisticNeuralNetwork(Classifier):
 
         i_ol = len(self.__activations) - 1
 
-        terms = self.__weights[i_ol - 1] * np.array([self.__activations[i_ol - 1], ] * self.__layers[i_ol])
-        zs = np.sum(terms, axis=1).tolist()
+        # terms = self.__weights[i_ol - 1] * np.array([self.__activations[i_ol - 1], ] * self.__layers[i_ol])
+        # zs = np.sum(terms, axis=1).tolist()
+        weights = np.array(self.__weights[i_ol - 1])
+        act = np.array(self.__activations[i_ol - 1])
+        terms = weights.dot(act)
+        zs = terms.tolist()
 
         self.__activations[i_ol] = [self.__activation(z) for z in zs]
 
@@ -97,51 +105,52 @@ class LogisticNeuralNetwork(Classifier):
     def __backpropagation(self, data_handler):
         instances = data_handler.as_instances()
         deltas = []
-        d = [[] for i in range(1, len(self.__activations) - 1)]
-        p = [[] for i in range(1, len(self.__activations) - 1)]
+        d = [[] for i in range(1, len(self.__activations) - 2)]
 
         for instance in instances:
             fw = self.__propagate(instance[0])
 
-            out_deltas = []
+            deltas_ol = []
             for output in fw:
-                out_deltas.insert(output - instance[1])
+                deltas_ol.append(output - instance[1])
 
-            deltas[0] = out_deltas
+            deltas.append(deltas_ol)
 
-            for i_hl in range(len(self.__activations) - 1, 2):
-                weights = np.array(self.__weights[i_hl - 1])
-                np.transpose(weights)
+            for i_hl in range(len(self.__activations) - 2, 2):
+                weights = np.array(self.__weights[i_hl])
+                weights = np.transpose(weights)
 
                 d_kplus1 = np.array(deltas[len(deltas) - 1])
-                terms = weights * d_kplus1
-                terms_sum = np.sum(terms, axis=1)
+                # terms = weights * d_kplus1
+                # terms_sum = np.sum(terms, axis=1)
+                terms = weights.dot(d_kplus1)
 
-                a_terms = np.ones((len(self.__activations) - 1)) - np.array(self.__activations[i_hl - 1])
+                a_terms = np.ones((len(self.__activations[i_hl]))) - np.array(self.__activations[i_hl])
 
-                delta_hl = np.array(terms_sum * a_terms).tolist()
+                # delta_hl = np.array(terms_sum * a_terms).tolist()
+                delta_hl = np.array(terms * a_terms).tolist()
                 delta_hl.pop()
-                deltas.insert(delta_hl)
+                deltas.append(delta_hl)
 
             deltas.reverse()
 
-            for i_hl in range(len(self.__activations) - 1, 1):
-                d_aux = np.array(deltas[i_hl]) * np.array(self.__activations[i_hl - 1])
-                d_aux = np.array(d[i_hl - 1]) + d_aux
-                d[i_hl - 1] = d_aux.tolist()
+            for i_hl in range(len(self.__activations) - 2, 1):
+                d_aux = np.array(deltas[i_hl + 1]) * np.array(self.__activations[i_hl])
+                d_aux = np.array(d[i_hl]) + d_aux
+                d[i_hl] = d_aux.tolist()
 
-        for i_hl in range(len(self.__activations) - 1, 1):
-            p_aux = np.array(self.__weights[i_hl - 1])
+        for i_hl in range(len(self.__activations) - 2, 1):
+            p_aux = np.array(self.__weights[i_hl])
             p_aux[:, 0] = 0
             p_aux = p_aux * self.__regularization_factor
-            # p[i_hl - 1] = p_aux.tolist()
+            # p[i_hl] = p_aux.tolist()
 
-            d_aux = (np.array(d[i_hl - 1]) + p_aux) / len(instances)
-            d[i_hl - 1] = d_aux.tolist()
+            d_aux = (np.array(d[i_hl]) + p_aux) / len(instances)
+            d[i_hl] = d_aux.tolist()
 
-        for i_hl in range(len(self.__activations) - 1, 1):
-            weights = np.array(self.__weights[i_hl - 1]) - np.array(d[i_hl - 1]) * self.__alpha
-            self.__weights[i_hl - 1] = weights
+        for i_hl in range(len(self.__activations) - 2, 1):
+            weights = np.array(self.__weights[i_hl]) - np.array(d[i_hl]) * self.__alpha
+            self.__weights[i_hl] = weights
 
     def classify(self, test_data_handler, test_instances):
         raise NotImplementedError
