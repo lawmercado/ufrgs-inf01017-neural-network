@@ -13,7 +13,8 @@ class LogisticNeuralNetwork(Classifier):
     __weights = []
     __regularization_factor = 0
     __activations = []
-    __alpha = 0.001
+    __gradients = []
+    __alpha = 0.2
 
     def __init__(self, data_handler, layers, initial_weights, regularization_factor=0):
         self.__layers = list(layers)
@@ -31,6 +32,18 @@ class LogisticNeuralNetwork(Classifier):
             activations.append(layer_activation)
 
         self.__activations = activations
+
+        gradients = []
+        print(self.__weights)
+        for weights_per_layer in self.__weights:
+            gradients_per_layer = []
+            for weights_per_neuron in weights_per_layer:
+                zeros = np.zeros(len(weights_per_neuron))
+                gradients_per_layer.append(zeros.tolist())
+
+            gradients.append(gradients_per_layer)
+
+        self.__gradients = gradients
 
         self.__train(data_handler)
 
@@ -106,13 +119,11 @@ class LogisticNeuralNetwork(Classifier):
         return 1 / (1 + math.exp(-z))
 
     def __backpropagation(self, data_handler):
-        n_layers = len(self.__activations)
-
+        last_layer = len(self.__activations) - 1
         print("Starting backpropagation")
         instances = data_handler.as_instances()
         print("Instances:")
         print(instances)
-        d = [[] for i in range(1, len(self.__activations) - 2)]
 
         for instance in instances:
             print("Instance:")
@@ -122,17 +133,18 @@ class LogisticNeuralNetwork(Classifier):
             print(fw)
 
             deltas = []
-            deltas_ol = []
+            deltas_out = []
             for output in fw:
-                deltas_ol.append(output - instance[1])
+                deltas_out.append(output - instance[1])
 
-            deltas.append(deltas_ol)
+            deltas.append(deltas_out)
 
-            for i_hl in range(len(self.__activations) - 2, 2):
-                weights = np.array(self.__weights[i_hl])
+            for k in range(last_layer - 1, 0, -1):
+                print("k=", k)
+                weights = np.array(self.__weights[k])
                 weights = np.transpose(weights)
                 print("Weights layer")
-                print(i_hl)
+                print(k)
                 print(weights)
 
                 d_kplus1 = np.array(deltas[len(deltas) - 1])
@@ -145,66 +157,71 @@ class LogisticNeuralNetwork(Classifier):
                 print(terms)
 
                 print("a:")
-                print(self.__activations[i_hl])
-                a_terms = np.ones((len(self.__activations[i_hl]))) - np.array(self.__activations[i_hl])
+                print(self.__activations[k])
+                a_terms = np.ones((len(self.__activations[k]))) - np.array(self.__activations[k])
                 print("1 - a:")
                 print(a_terms)
-                a_terms = a_terms * np.array(self.__activations[i_hl])
+                a_terms = a_terms * np.array(self.__activations[k])
                 print("a x (1 - a):")
                 print(a_terms)
 
                 # delta_hl = np.array(terms_sum * a_terms).tolist()
-                delta_hl = np.array(terms * a_terms).tolist()
+                delta_in = np.array(terms * a_terms).tolist()
                 print("Weights x Delta_k+1 x a x (1 - a):")
-                print(delta_hl)
-                delta_hl.pop(0)
-                deltas.append(delta_hl)
+                print(delta_in)
+                delta_in.pop(0)
+                deltas.append(delta_in)
 
             deltas.reverse()
             print("Node error:")
             print(deltas)
 
-            for i_hl in range(len(self.__activations) - 2, 1):
+            for k in range(last_layer - 1, -1, -1):
+                print("k=", k)
                 print("d(k+1):")
-                print(deltas[i_hl + 1])
+                print(deltas[k])
                 print("a(k):")
-                print(self.__activations[i_hl])
-                d_aux = np.array(deltas[i_hl + 1]) * np.array(self.__activations[i_hl])
+                print(self.__activations[k])
+                delt = np.array(deltas[k])
+                act = np.array(self.__activations[k])
+                d_aux = np.outer(delt, act)
                 print("d(k+1) x a(k)")
                 print(d_aux)
                 print("D(k):")
-                print(d[i_hl])
-                d_aux = np.array(d[i_hl]) + d_aux
-                d[i_hl] = d_aux.tolist()
+                print(self.__gradients[k])
+                d_aux = np.array(self.__gradients[k]) + d_aux
+                self.__gradients[k] = d_aux.tolist()
                 print("D(k) updated:")
-                print(d[i_hl])
+                print(self.__gradients[k])
 
-        for i_hl in range(len(self.__activations) - 2, 1):
-            p_aux = np.array(self.__weights[i_hl])
+        for k in range(last_layer - 1, -1, -1):
+            print("k=", k)
+            p_aux = np.array(self.__weights[k])
             p_aux[:, 0] = 0
             print("P(k) with first column nullified:")
             print(p_aux)
             p_aux = p_aux * self.__regularization_factor
             print("P(k) x Regularization Factor:")
             print(p_aux)
-            # p[i_hl] = p_aux.tolist()
+            # p[k] = p_aux.tolist()
 
             print("D(k):")
-            print(d[i_hl])
+            print(self.__gradients[k])
             print("n:")
             print(len(instances))
-            d_aux = (np.array(d[i_hl]) + p_aux) / len(instances)
-            d[i_hl] = d_aux.tolist()
+            d_aux = (np.array(self.__gradients[k]) + p_aux) / len(instances)
+            self.__gradients[k] = d_aux.tolist()
             print("D(k) updated:")
-            print(d[i_hl])
+            print(self.__gradients[k])
 
-        for i_hl in range(len(self.__activations) - 2, 1):
+        for k in range(last_layer - 1, -1, -1):
+            print("k=", k)
             print("Old weights:")
-            print(self.__weights[i_hl])
-            weights = np.array(self.__weights[i_hl]) - np.array(d[i_hl]) * self.__alpha
-            self.__weights[i_hl] = weights
+            print(self.__weights[k])
+            weights = np.array(self.__weights[k]) - np.array(self.__gradients[k]) * self.__alpha
+            self.__weights[k] = weights.tolist()
             print("New weights:")
-            print(self.__weights[i_hl])
+            print(self.__weights[k])
 
     def classify(self, test_data_handler, test_instances):
         raise NotImplementedError
