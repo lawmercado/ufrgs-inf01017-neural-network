@@ -40,7 +40,7 @@ def setup_logger():
 if __name__ == '__main__':
     logger = setup_logger()
 
-    supported_data_sets = ["benchmark", "diabetes", "wine", "ionosphere", "cancer"]
+    supported_data_sets = ["benchmark", "diabetes", "wine", "ionosphere", "cancer", "nn_test1", "nn_test2"]
     supported_discretizations = ["mean", "information_gain", "quartiles"]
 
     parser = argparse.ArgumentParser()
@@ -90,6 +90,16 @@ if __name__ == '__main__':
                 class_attr = "diagnosis"
                 id_attr = "id"
 
+            elif args.data_set.strip() == "nn_test1":
+                filename = "sets/neural_net_test_1.csv"
+                delimiter = ","
+                class_attr = "Y"
+
+            elif args.data_set.strip() == "nn_test2":
+                filename = "sets/neural_net_test_2.csv"
+                delimiter = ","
+                class_attr = ["Y1", "Y2"]
+
             rows = list(csv.reader(open(filename, "r"), delimiter=delimiter))
             data_handler = DataHandler(rows, class_attr, id_attr)
 
@@ -104,7 +114,15 @@ if __name__ == '__main__':
 
             print("Processing...")
 
-            LogisticNeuralNetwork(data_handler, [2, 2, 2], [[[0.5, 0.5, 0.5], [0.1, 0.1, 0.1]], [[0.5, 0.5, 0.5], [0.1, 0.1, 0.1]]])
+            LogisticNeuralNetwork(data_handler, [2, 4, 3, 2], [[[0.42, 0.15, 0.4],
+                                                                [0.72, 0.1, 0.54],
+                                                                [0.01, 0.19, 0.42],
+                                                                [0.3, 0.35, 0.68]],
+                                                               [[0.21, 0.67, 0.14, 0.96, 0.87],
+                                                                [0.87, 0.42, 0.2, 0.32, 0.89],
+                                                                [0.03, 0.56, 0.8, 0.69, 0.09]],
+                                                               [[0.04, 0.87, 0.42, 0.53],
+                                                                [0.17, 0.1, 0.95, 0.69]]])
 
         else:
             raise AttributeError("Data set is not supported!")

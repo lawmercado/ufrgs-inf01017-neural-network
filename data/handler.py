@@ -18,8 +18,8 @@ class DataHandler(object):
 
     __header = []
     __data = []
-    __class_attr = None
-    __idx_class_attr = None
+    __class_attr = []
+    __idx_class_attr = {}
     __data_by_attr = []
     __data_as_instances = []
 
@@ -28,7 +28,7 @@ class DataHandler(object):
         Constructor of the class
 
         :param list raw_data: A list of data
-        :param list class_attr: An attribute that contains important conclusion/information about the record
+        :param list class_attr: A list of attributes that contains important conclusion/information about the record
         """
 
         self.__data = copy.deepcopy(raw_data)
@@ -56,21 +56,23 @@ class DataHandler(object):
                 self.__data[idx_data].pop(idx_id_attr)
 
         # After id column removal (if any), update the idx of class attr
-        self.__idx_class_attr = self.__header.index(class_attr)
+        for class_attribute in self.__class_attr:
+            self.__idx_class_attr[class_attribute] = self.__header.index(class_attribute)
 
-        # Moves the class column to the end of the data
-        if self.__idx_class_attr != (len(self.__header) - 1):
-            classes = data_by_attr.pop(self.__idx_class_attr)
-            header_class_item = self.__header.pop(self.__idx_class_attr)
+        # Moves the class columns to the end of the data
+        for class_attribute in self.__class_attr:
+            if self.__idx_class_attr[class_attribute] < (len(self.__header) - len(self.__class_attr)):
+                classes = data_by_attr.pop(self.__idx_class_attr[class_attribute])
+                header_class_item = self.__header.pop(self.__idx_class_attr[class_attribute])
 
-            for idx_data in range(0, len(self.__data)):
-                item = self.__data[idx_data].pop(self.__idx_class_attr)
-                self.__data[idx_data].append(item)
+                for idx_data in range(0, len(self.__data)):
+                    item = self.__data[idx_data].pop(self.__idx_class_attr[class_attribute])
+                    self.__data[idx_data].append(item)
 
-            data_by_attr.append(classes)
-            self.__header.append(header_class_item)
+                data_by_attr.append(classes)
+                self.__header.append(header_class_item)
 
-            self.__idx_class_attr = self.__header.index(self.__class_attr)
+                self.__idx_class_attr[class_attribute] = self.__header.index(class_attribute)
 
         data_by_attr = tuple(data_by_attr)
 
@@ -152,7 +154,8 @@ class DataHandler(object):
 
     def attributes(self):
         attributes = list(self.__header)
-        attributes.remove(self.__class_attr)
+        for class_attribute in self.__class_attr:
+            attributes.remove(class_attribute)
 
         return attributes
 
@@ -177,18 +180,26 @@ class DataHandler(object):
 
         data = self.by_attributes()
 
-        classes = data[self.__idx_class_attr]
+        classes = []
+        for class_attribute in self.__class_attr:
+            classes.append(data[self.__idx_class_attr[class_attribute]])
+
+        classes_by_instance = []
+        for idx in range(len(classes[0])):
+            instance_classes = []
+            for class_data in classes:
+                instance_classes.append(class_data[idx])
+            classes_by_instance.append(instance_classes)
 
         instances = []
-
-        for x in range(0, len(classes)):
+        for x in range(0, len(classes_by_instance)):
             instances.append(())
 
         for idx_attr in range(0, len(self.attributes())):
             for idx_value, value in enumerate(data[idx_attr]):
                 instances[idx_value] = instances[idx_value] + (value,)
 
-        instances = [(instance, classes[idx_instance]) for idx_instance, instance in enumerate(instances)]
+        instances = [(instance, classes_by_instance[idx_instance]) for idx_instance, instance in enumerate(instances)]
 
         # Saves for further use
         self.__data_as_instances = instances
@@ -546,7 +557,7 @@ class DataHandler(object):
 
         return info - info_attr
 
-    def entropy(self):
+    """def entropy(self):
         data_by_class = self.by_class_attr_values()
 
         total_instances = len(self.as_instances())
@@ -558,9 +569,9 @@ class DataHandler(object):
 
             info -= pi * math.log(pi, 2)
 
-        return info
+        return info"""
 
-    def most_occurred_class(self):
+    """def most_occurred_class(self):
         by_class = self.by_class_attr_values()
 
         most_occurred_class_count = max([len(value) for value in by_class.values()])
@@ -569,7 +580,7 @@ class DataHandler(object):
         try:
             return most_occurred_class[random.randint(0, 1)]
         except IndexError:
-            return most_occurred_class[0]
+            return most_occurred_class[0]"""
 
     def __str__(self):
         return str(self.by_attributes())

@@ -11,11 +11,10 @@ class LogisticNeuralNetwork(Classifier):
 
     __layers = []
     __weights = []
-    __old_weights = []
     __regularization_factor = 0
     __activations = []
     __gradients = []
-    __alpha = 0.1
+    __alpha = 0.05
 
     def __init__(self, data_handler, layers, initial_weights, regularization_factor=0):
         self.__layers = list(layers)
@@ -35,7 +34,6 @@ class LogisticNeuralNetwork(Classifier):
         self.__activations = activations
 
         gradients = []
-        # print(self.__weights)
         for weights_per_layer in self.__weights:
             gradients_per_layer = []
             for weights_per_neuron in weights_per_layer:
@@ -49,11 +47,13 @@ class LogisticNeuralNetwork(Classifier):
         self.__train(data_handler)
 
     def __train(self, data_handler):
-        print("Cost: " + str(self.__cost(data_handler)))
+        print("\nCost: " + str(self.__cost(data_handler)))
 
         self.__backpropagation(data_handler)
-        while not self.__stop(data_handler):
+        while not self.__stop():
             self.__backpropagation(data_handler)
+
+        print("\nFinal gradients:\n" + str(np.array(self.__gradients)))
 
     def __cost(self, data_handler):
         instances = data_handler.as_instances()
@@ -64,15 +64,16 @@ class LogisticNeuralNetwork(Classifier):
 
             if j is not None:
                 j = j + np.array(
-                    [-instance[1] * math.log(output, 10) - (1 - instance[1]) * math.log(1 - output) for output in fw])
+                    [-instance[1][i] * math.log(output, 10) - (1 - instance[1][i]) * math.log(1 - output)
+                     for i, output in enumerate(fw)])
             else:
                 j = np.array(
-                    [-instance[1] * math.log(output, 10) - (1 - instance[1]) * math.log(1 - output) for output in fw])
+                    [-instance[1][i] * math.log(output, 10) - (1 - instance[1][i]) * math.log(1 - output)
+                     for i, output in enumerate(fw)])
 
         j = np.sum(j)/len(instances)
 
-        print("Activations:")
-        print(self.__activations)
+        print("\nActivations:\n" + str(self.__activations))
 
         s = 0
 
@@ -92,8 +93,6 @@ class LogisticNeuralNetwork(Classifier):
         self.__activations[0].insert(0, 1.0)
 
         for i_hl in range(1, len(self.__activations) - 1):
-            # terms = np.array(self.__weights[i_hl - 1]) * np.array([self.__activations[i_hl - 1], ] * self.__layers[i_hl])
-            # zs = np.sum(terms, axis=1).tolist()
             weights = np.array(self.__weights[i_hl - 1])
             act = np.array(self.__activations[i_hl - 1])
             terms = weights.dot(act)
@@ -107,8 +106,6 @@ class LogisticNeuralNetwork(Classifier):
 
         i_ol = len(self.__activations) - 1
 
-        # terms = self.__weights[i_ol - 1] * np.array([self.__activations[i_ol - 1], ] * self.__layers[i_ol])
-        # zs = np.sum(terms, axis=1).tolist()
         weights = np.array(self.__weights[i_ol - 1])
         act = np.array(self.__activations[i_ol - 1])
         terms = weights.dot(act)
@@ -123,127 +120,83 @@ class LogisticNeuralNetwork(Classifier):
 
     def __backpropagation(self, data_handler):
         last_layer = len(self.__activations) - 1
-        print("Starting backpropagation")
+        print("\nStarting back propagation")
         instances = data_handler.as_instances()
-        # print("Instances:")
-        # print(instances)
 
         for instance in instances:
-            print("Instance:")
-            print(instance)
+            print("\nInstance:" + str(instance))
+            # Propagate instance
             fw = self.__propagate(instance[0])
-            print("Output after propagating one instance:")
-            print(fw)
+            print("\nOutput after propagating instance:" + str(fw))
 
             deltas = []
             deltas_out = []
-            for output in fw:
-                deltas_out.append(output - instance[1])
+            # Calculate neurons deltas for output layer
+            for i, output in enumerate(fw):
+                deltas_out.append(output - instance[1][i])
 
             deltas.append(deltas_out)
 
+            # Calculate neurons deltas for hidden layers
             for k in range(last_layer - 1, 0, -1):
-                # print("k=" + str(k))
                 weights = np.array(self.__weights[k])
                 weights = np.transpose(weights)
-                # print("Weights layer-" + str(k))
-                # print(weights)
 
                 d_kplus1 = np.array(deltas[len(deltas) - 1])
-                # print("delta k+1")
-                # print(d_kplus1)
-                # terms = weights * d_kplus1
-                # terms_sum = np.sum(terms, axis=1)
+
                 terms = weights.dot(d_kplus1)
-                # print("Weights x Delta_k+1:")
-                # print(terms)
 
-                # print("a:")
-                # print(self.__activations[k])
                 a_terms = np.ones((len(self.__activations[k]))) - np.array(self.__activations[k])
-                # print("1 - a:")
-                # print(a_terms)
                 a_terms = a_terms * np.array(self.__activations[k])
-                # print("a x (1 - a):")
-                # print(a_terms)
 
-                # delta_hl = np.array(terms_sum * a_terms).tolist()
                 delta_in = np.array(terms * a_terms).tolist()
-                # print("Weights x Delta_k+1 x a x (1 - a):")
-                # print(delta_in)
                 delta_in.pop(0)
                 deltas.append(delta_in)
 
             deltas.reverse()
-            print("Deltas:")
-            print(deltas)
+            print("\nDeltas for this instance:\n" + str(deltas))
 
+            # Update gradient for each weight in each layer
             for k in range(last_layer - 1, -1, -1):
-                # print("k=" + str(k))
-                # print("d(k+1):")
-                # print(deltas[k])
-                # print("a(k):")
-                # print(self.__activations[k])
                 delt = np.array(deltas[k])
                 act = np.array(self.__activations[k])
                 d_aux = np.outer(delt, act)
-                # print("d(k+1) x a(k)")
-                # print(d_aux)
-                # print("D(k):")
-                # print(self.__gradients[k])
+                print("\nGradients on layer " + str(k) + "for this instance:\n" + str(d_aux))
                 d_aux = np.array(self.__gradients[k]) + d_aux
                 self.__gradients[k] = d_aux.tolist()
-                # print("D(k) updated:")
-                # print(self.__gradients[k])
 
+        # Apply regularization to calculated gradients
         for k in range(last_layer - 1, -1, -1):
-            # print("k=" + str(k))
             p_aux = np.array(self.__weights[k])
             p_aux[:, 0] = 0
-            # print("P(k) with first column nullified:")
-            # print(p_aux)
             p_aux = p_aux * self.__regularization_factor
-            # print("P(k) x Regularization Factor:")
-            # print(p_aux)
-            # p[k] = p_aux.tolist()
 
-            # print("D(k):")
-            # print(self.__gradients[k])
-            # print("n:")
-            # print(len(instances))
             d_aux = (np.array(self.__gradients[k]) + p_aux) / len(instances)
             self.__gradients[k] = d_aux.tolist()
-            # print("D(k) updated:")
-            # print(self.__gradients[k])
 
-            self.__old_weights = list(self.__weights)
+        # Update weights in each layer
         for k in range(last_layer - 1, -1, -1):
-            print("k=" + str(k))
-            print("Old weights:")
-            print(self.__weights[k])
             weights = np.array(self.__weights[k]) - np.array(self.__gradients[k]) * self.__alpha
             self.__weights[k] = weights.tolist()
-            print("New weights:")
-            print(self.__weights[k])
 
-    def __stop(self, data_handler):
-        stop = True
+    def __stop(self):
+        stop = False
 
-        instances = data_handler.as_instances()
-        for instance in instances:
+        gradient_mean_square = 0
+        number_of_gradients = 0
+        for layer in self.__gradients:
+            for neuron in layer:
+                for gradient in neuron:
+                    gradient_mean_square += gradient ** 2
+                    number_of_gradients += 1
 
-            fw = self.__propagate(instance[0])
-            for output in fw:
-                diff = abs(output - instance[1])
+        gradient_rms = math.sqrt(gradient_mean_square / number_of_gradients)
 
-                #print(diff)
-                # If error bigger than NUMBER then must continue backpropagating
-                if diff > 0.1:
-                    stop = False
-                    return stop
+        # Root mean square of all gradients must be less than 0.0001 to stop back propagating
+        if gradient_rms < 0.0001:
+            stop = True
 
         return stop
-
 
     def classify(self, test_data_handler, test_instances):
         raise NotImplementedError
