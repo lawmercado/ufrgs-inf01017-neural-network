@@ -186,9 +186,9 @@ class DataHandler(object):
 
         classes_by_instance = []
         for idx in range(len(classes[0])):
-            instance_classes = []
+            instance_classes = ()
             for class_data in classes:
-                instance_classes.append(class_data[idx])
+                instance_classes = instance_classes + (class_data[idx],)
             classes_by_instance.append(instance_classes)
 
         instances = []
@@ -557,30 +557,6 @@ class DataHandler(object):
 
         return info - info_attr
 
-    """def entropy(self):
-        data_by_class = self.by_class_attr_values()
-
-        total_instances = len(self.as_instances())
-
-        info = 0
-
-        for yi in data_by_class:
-            pi = len(data_by_class[yi]) / total_instances
-
-            info -= pi * math.log(pi, 2)
-
-        return info"""
-
-    """def most_occurred_class(self):
-        by_class = self.by_class_attr_values()
-
-        most_occurred_class_count = max([len(value) for value in by_class.values()])
-        most_occurred_class = [k for k, value in by_class.items() if len(value) == most_occurred_class_count]
-
-        try:
-            return most_occurred_class[random.randint(0, 1)]
-        except IndexError:
-            return most_occurred_class[0]"""
 
     def __str__(self):
         return str(self.by_attributes())

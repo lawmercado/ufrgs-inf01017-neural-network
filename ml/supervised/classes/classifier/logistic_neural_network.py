@@ -50,8 +50,8 @@ class LogisticNeuralNetwork(Classifier):
         print("\nCost: " + str(self.__cost(data_handler)))
 
         self.__backpropagation(data_handler)
-        while not self.__stop():
-            self.__backpropagation(data_handler)
+        #while not self.__stop():
+        #    self.__backpropagation(data_handler)
 
         print("\nFinal gradients:\n" + str(np.array(self.__gradients)))
 
