@@ -15,6 +15,7 @@ class LogisticNeuralNetwork(Classifier):
     __activations = []
     __gradients = []
     __alpha = 0.05
+    __epsilon = 0.000001
 
     def __init__(self, data_handler, layers, initial_weights, regularization_factor=0):
         self.__layers = list(layers)
@@ -46,34 +47,86 @@ class LogisticNeuralNetwork(Classifier):
 
         self.__train(data_handler)
 
-    def __train(self, data_handler):
-        print("\nCost: " + str(self.__cost(data_handler)))
+    def __numerical_validation(self, data_handler):
+        # Store a copy of the current weights
+        aux_weights = list(self.__weights)
+
+        numerical_gradients = []
+        for weights_per_layer in self.__weights:
+            gradients_per_layer = []
+            for weights_per_neuron in weights_per_layer:
+                gradients_per_neuron = []
+                for i_weight in range(len(weights_per_neuron)):
+                    current_weight = weights_per_neuron[i_weight]
+
+                    weights_per_neuron[i_weight] = current_weight + self.__epsilon
+                    JplusE = self.__total_cost(data_handler)
+                    weights_per_neuron[i_weight] = current_weight - self.__epsilon
+                    JminusE = self.__total_cost(data_handler)
+
+                    numerical_gradient = (JplusE - JminusE) / (2 * self.__epsilon)
+                    gradients_per_neuron.append(numerical_gradient)
+                    weights_per_neuron[i_weight] = current_weight
+
+                gradients_per_layer.append(gradients_per_neuron)
+
+            numerical_gradients.append(gradients_per_layer)
+
+        # Return weights to normal
+        self.__weights = aux_weights
 
         self.__backpropagation(data_handler)
-        #while not self.__stop():
-        #    self.__backpropagation(data_handler)
+
+        errors = None
+        for layer, ng_layer in zip(self.__gradients, numerical_gradients):
+            layer_error = np.array(layer) - np.array(ng_layer)
+            layer_error = np.fabs(layer_error)
+
+            if errors is not None:
+                errors = np.append(errors, np.sum(layer_error))
+            else:
+                errors = np.array(np.sum(layer_error))
 
         print("\nFinal gradients:\n" + str(np.array(self.__gradients)))
 
-    def __cost(self, data_handler):
+        print("\nFinal numerical gradients:\n" + str(np.array(numerical_gradients)))
+
+        print("\nDifference between gradient via backpropagation & numerical gradient:\n" + str(errors))
+
+    def __train(self, data_handler):
+        self.__numerical_validation(data_handler)
+
+        # while not self.__stop():
+        #    self.__backpropagation(data_handler)
+
+        # print("\nFinal gradients:\n" + str(np.array(self.__gradients)))
+
+    def __instance_cost(self, instance):
+        fw = self.__propagate(instance[0])
+        j_instance = 0
+
+        for i, output in enumerate(fw):
+            j_instance = j_instance \
+                            - instance[1][i] * math.log(output) - (1 - instance[1][i]) * math.log(1 - output)
+
+        return j_instance
+
+    def __total_cost(self, data_handler):
         instances = data_handler.as_instances()
         j = None
 
         for instance in instances:
-            fw = self.__propagate(instance[0])
+            j_instance = self.__instance_cost(instance)
 
             if j is not None:
-                j = j + np.array(
-                    [-instance[1][i] * math.log(output, 10) - (1 - instance[1][i]) * math.log(1 - output)
-                     for i, output in enumerate(fw)])
+                j = np.append(j, j_instance)
             else:
-                j = np.array(
-                    [-instance[1][i] * math.log(output, 10) - (1 - instance[1][i]) * math.log(1 - output)
-                     for i, output in enumerate(fw)])
+                j = np.array(j_instance)
 
+        print("\nCosts without regularization:" + str(j))
         j = np.sum(j)/len(instances)
 
-        print("\nActivations:\n" + str(self.__activations))
+        # print("\nActivations:\n" + str(self.__activations))
 
         s = 0
 
@@ -84,6 +137,7 @@ class LogisticNeuralNetwork(Classifier):
 
         s = (self.__regularization_factor / (2 * len(instances))) * s
 
+        print("Total cost(with regularization):" + str(j + s))
         return j + s
 
     def __propagate(self, instance):
