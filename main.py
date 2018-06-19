@@ -3,7 +3,6 @@
 
 from __future__ import division
 from __future__ import print_function
-import csv
 import logging
 import argparse
 import random
@@ -40,14 +39,14 @@ def setup_logger():
 if __name__ == '__main__':
     logger = setup_logger()
 
-    supported_data_sets = ["benchmark", "diabetes", "wine", "ionosphere", "cancer", "nn_test1", "nn_test2"]
-    supported_discretizations = ["mean", "information_gain", "quartiles"]
-
     parser = argparse.ArgumentParser()
+    #parser.add_argument("operation", metavar="O", type=str, help="operation to be executed: 'backpropagation', 'validate', 'classify'")
+    parser.add_argument("struct_file", metavar="N", type=str, help="network structure .txt file")
+    parser.add_argument("weights_file", metavar="W", type=str, help="network initial weights .txt file")
+    parser.add_argument("dataset_file", metavar="D", type=str, help="dataset .txt file")
     parser.add_argument("--verbose", help="enables debugging", action="store_true")
-    parser.add_argument("--data_set", type=str, help="the data set to test. Options are " + str(supported_data_sets))
+    parser.add_argument("--normalize", help="normalize the dataset", action="store_true")
     parser.add_argument("--seed", type=int, help="the seed to consider in random numbers generation")
-    parser.add_argument("--discretization", type=str, default="mean", help="the method to use in discretization. Options are " + str(supported_discretizations))
 
     args = parser.parse_args()
 
@@ -57,75 +56,48 @@ if __name__ == '__main__':
     if args.verbose:
         logger.setLevel(logging.DEBUG)
 
-    if args.data_set is not None:
-        if args.data_set in supported_data_sets:
-            filename = ""
-            delimiter = ""
-            class_attr = ""
-            id_attr = None
+    data_handler = DataHandler(DataHandler.parse(args.dataset_file, args.normalize))
 
-            if args.data_set.strip() == "benchmark":
-                filename = "sets/benchmark.csv"
-                delimiter = ","
-                class_attr = "Joga"
+    print(data_handler)
 
-            elif args.data_set.strip() == "diabetes":
-                filename = "sets/diabetes.csv"
-                delimiter = ","
-                class_attr = "Outcome"
+    print("Reading strucuture files...")
 
-            elif args.data_set.strip() == "wine":
-                filename = "sets/wine.csv"
-                delimiter = ","
-                class_attr = "Type"
+    regularization_factor = 0
+    layers = []
+    initial_weights = []
 
-            elif args.data_set.strip() == "ionosphere":
-                filename = "sets/ionosphere.csv"
-                delimiter = ","
-                class_attr = "radar"
+    with open(args.struct_file) as sf:
+        lines = [line.rstrip().lstrip() for line in sf.readlines()]
+        regularization_factor = float(lines[0])
+        for i in range(1, len(lines)):
+            layers.append(int(lines[i]))
 
-            elif args.data_set.strip() == "cancer":
-                filename = "sets/cancer.csv"
-                delimiter = ","
-                class_attr = "diagnosis"
-                id_attr = "id"
+    with open(args.weights_file) as wf:
+        lines = [line.rstrip().lstrip() for line in wf.readlines()]
 
-            elif args.data_set.strip() == "nn_test1":
-                filename = "sets/neural_net_test_1.csv"
-                delimiter = ","
-                class_attr = "Y"
+        if len(lines) > 0:
+            for idx, line in enumerate(lines):
+                layer_weights = line.split(";")
+                if len(layer_weights) != layers[idx + 1]:
+                    raise ImportError("Number of weights for the layer do not match with the number of neurons!")
 
-            elif args.data_set.strip() == "nn_test2":
-                filename = "sets/neural_net_test_2.csv"
-                delimiter = ","
-                class_attr = ["Y1", "Y2"]
+                parsed_layer_weights = []
 
-            rows = list(csv.reader(open(filename, "r"), delimiter=delimiter))
-            data_handler = DataHandler(rows, class_attr, id_attr)
+                for n_weights in layer_weights:
+                    parsed_n_weights = [float(weight) for weight in n_weights.rstrip().lstrip().split(",")]
+                    parsed_layer_weights.append(parsed_n_weights)
 
-            print("Discretizing...")
+                    if len(parsed_n_weights) != (layers[idx] + 1):
+                        raise ImportError("Number of weights do not match with next layer neurons")
 
-            if args.discretization == "mean":
-                data_handler = data_handler.discretize()
-            elif args.discretization == "quartiles":
-                data_handler = data_handler.discretize_quartile()
-            elif args.discretization == "information_gain":
-                data_handler = data_handler.discretize_information_gain()
-
-            print("Processing...")
-
-            LogisticNeuralNetwork(data_handler, [2, 4, 3, 2], [[[0.42, 0.15, 0.4],
-                                                                [0.72, 0.1, 0.54],
-                                                                [0.01, 0.19, 0.42],
-                                                                [0.3, 0.35, 0.68]],
-                                                               [[0.21, 0.67, 0.14, 0.96, 0.87],
-                                                                [0.87, 0.42, 0.2, 0.32, 0.89],
-                                                                [0.03, 0.56, 0.8, 0.69, 0.09]],
-                                                               [[0.04, 0.87, 0.42, 0.53],
-                                                                [0.17, 0.1, 0.95, 0.69]]], 0.25)
-
+                initial_weights.append(parsed_layer_weights)
         else:
-            raise AttributeError("Data set is not supported!")
+            r = 4 * ((6/(layers[0] + layers[len(layers) - 1]))**0.5)
 
-    else:
-        print("Nothing to do here...")
+            for idx_layer in range(0, len(layers) - 1):
+                weights = [round(random.uniform(-r, r), 5) for _ in range(0, layers[idx_layer] + 1)]
+                layer_weights = [list(weights) for _ in range(0, layers[idx_layer + 1])]
+
+                initial_weights.append(layer_weights)
+
+    LogisticNeuralNetwork(data_handler, layers, initial_weights, regularization_factor)
