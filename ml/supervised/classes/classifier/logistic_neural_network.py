@@ -157,7 +157,7 @@ class LogisticNeuralNetwork(Classifier):
 
             current_error = self.__total_cost(data_handler.as_instances())
             num_examples += len(data_handler.as_instances())
-            logger.debug("N. example,curr. error: %d,%.5f" % (num_examples, current_error))
+            print("%d,%.5f" % (num_examples, current_error))
             stop = math.fabs(current_error - previous_error) < 0.0001
             previous_error = current_error
 
