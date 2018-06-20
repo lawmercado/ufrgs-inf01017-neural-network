@@ -1,0 +1,9 @@
+Reading dataset file...
+Reading strucuture files...
+Classifying...
+691;0.66942
+1382;0.63655
+2073;0.62331
+2764;0.61923
+3455;0.61836
+4146;0.61830

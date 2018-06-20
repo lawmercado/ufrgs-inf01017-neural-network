@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 from __future__ import division
+import numpy as np
 
 
 class Measure(object):
@@ -17,6 +18,7 @@ class Measure(object):
         true_negatives = {}
         false_positives = {}
         false_negatives = {}
+
         for a_class in classes:
             true_positives[a_class] = 0
             true_negatives[a_class] = 0
@@ -26,17 +28,17 @@ class Measure(object):
         # Compare classified samples with the test set
         for (predicted_sample, test_sample) in zip(classified_instances, instances):
             # If right prediction
-            if predicted_sample[1] == test_sample[1]:
+            if str(predicted_sample[1]) == str(test_sample[1]):
                 correct_classifications += 1
-                true_positives[predicted_sample[1]] += 1
+                true_positives[str(predicted_sample[1])] += 1
 
                 for a_class in classes:
-                    if a_class != predicted_sample[1]:
+                    if a_class != str(predicted_sample[1]):
                         true_negatives[a_class] += 1
 
             else:
                 for a_class in classes:
-                    if a_class == predicted_sample[1]:
+                    if a_class == str(predicted_sample[1]):
                         false_positives[a_class] += 1
                     else:
                         false_negatives[a_class] += 1
@@ -54,9 +56,13 @@ class Measure(object):
 
         self.accuracy = correct_classifications / len(classified_instances)
 
-        # Micro average for 3 or more possible classes
-        self.recall = total_true_positives / (total_true_positives + total_false_negatives)
-        self.precision = total_true_positives / (total_true_positives + total_false_positives)
+        try:
+            # Micro average for 3 or more possible classes
+            self.recall = total_true_positives / (total_true_positives + total_false_negatives)
+            self.precision = total_true_positives / (total_true_positives + total_false_positives)
+        except ZeroDivisionError:
+            self.recall = 0
+            self.precision = 0
 
     def f_measure(self, beta):
         return ((beta**2 + 1) * self.precision * self.recall)/((beta**2) * self.precision + self.recall)

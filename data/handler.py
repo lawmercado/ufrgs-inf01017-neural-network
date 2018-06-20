@@ -12,10 +12,8 @@ logger = logging.getLogger("main")
 
 class DataHandler(object):
     __instances = []
-    __num_classes = 0
 
     def __init__(self, instances):
-        self.__num_classes = len(instances[0][1])
         self.__instances = copy.deepcopy(instances)
 
     def __str__(self):
@@ -27,8 +25,8 @@ class DataHandler(object):
 
         return []
 
-    def num_classes(self):
-        return self.__num_classes
+    def classes(self):
+        return list(self.__by_class_attr_values().keys())
 
     def stratify(self, k_folds):
         """

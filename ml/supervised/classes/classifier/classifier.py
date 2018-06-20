@@ -4,5 +4,5 @@
 
 class Classifier(object):
 
-    def classify(self, test_data_handler, test_instances):
+    def classify(self, train_data_handler, test_instances):
         raise NotImplementedError

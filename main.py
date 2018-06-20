@@ -47,6 +47,9 @@ if __name__ == '__main__':
     parser.add_argument("--verbose", help="enables debugging", action="store_true")
     parser.add_argument("--normalize", help="normalize the dataset", action="store_true")
     parser.add_argument("--seed", type=int, help="the seed to consider in random numbers generation")
+    parser.add_argument("--alpha", type=float, help="the alpha to be considered in the neural network")
+    parser.add_argument("--beta", type=float, help="the beta to be considered in the neural network")
+    parser.add_argument("--ins_per_batch", type=int, help="the number of instances to use per mini batch in the training")
 
     args = parser.parse_args()
 
@@ -56,9 +59,9 @@ if __name__ == '__main__':
     if args.verbose:
         logger.setLevel(logging.DEBUG)
 
-    data_handler = DataHandler(DataHandler.parse(args.dataset_file, args.normalize))
+    print("Reading dataset file...")
 
-    print(data_handler)
+    data_handler = DataHandler(DataHandler.parse(args.dataset_file, args.normalize))
 
     print("Reading strucuture files...")
 
@@ -68,7 +71,9 @@ if __name__ == '__main__':
 
     with open(args.struct_file) as sf:
         lines = [line.rstrip().lstrip() for line in sf.readlines()]
+
         regularization_factor = float(lines[0])
+
         for i in range(1, len(lines)):
             layers.append(int(lines[i]))
 
@@ -95,9 +100,26 @@ if __name__ == '__main__':
             r = 4 * ((6/(layers[0] + layers[len(layers) - 1]))**0.5)
 
             for idx_layer in range(0, len(layers) - 1):
-                weights = [round(random.uniform(-r, r), 5) for _ in range(0, layers[idx_layer] + 1)]
+                weights = [random.uniform(-r, r) for _ in range(0, layers[idx_layer] + 1)]
                 layer_weights = [list(weights) for _ in range(0, layers[idx_layer + 1])]
 
                 initial_weights.append(layer_weights)
 
-    LogisticNeuralNetwork(data_handler, layers, initial_weights, regularization_factor)
+    alpha = 0.9
+    beta = 0.95
+    ins_per_batch = 50
+
+    if args.alpha is not None:
+        alpha = args.alpha
+
+    if args.beta is not None:
+        beta = args.beta
+
+    if args.ins_per_batch is not None:
+        ins_per_batch = args.ins_per_batch
+
+    print("Classifying...")
+
+    data = crossvalidation(10, data_handler, LogisticNeuralNetwork(layers, initial_weights, regularization_factor, alpha, beta, ins_per_batch))
+
+    print(get_statistics(data))

@@ -3,24 +3,41 @@
 
 from __future__ import division
 from .classifier import Classifier
+import copy
 import numpy as np
 import math
+import logging
+
+logger = logging.getLogger("main")
 
 
 class LogisticNeuralNetwork(Classifier):
 
     __layers = []
+    __initial_weights = []
     __weights = []
     __regularization_factor = 0
     __activations = []
     __gradients = []
-    __alpha = 0.05
+    __previous_gradients = []
+    __alpha = 0
+    __beta = 0
+    __ins_per_batch = 0
     __epsilon = 0.000001
 
-    def __init__(self, data_handler, layers, initial_weights, regularization_factor=0):
-        self.__layers = list(layers)
-        self.__weights = initial_weights
+    def __init__(self, layers, initial_weights, regularization_factor, alpha, beta, ins_per_batch):
+        self.__layers = copy.deepcopy(layers)
+        self.__initial_weights = copy.deepcopy(initial_weights)
+        self.__weights = copy.deepcopy(initial_weights)
         self.__regularization_factor = regularization_factor
+        self.__alpha = alpha
+        self.__beta = beta
+        self.__ins_per_batch = ins_per_batch
+
+        self.__reset()
+
+    def __reset(self):
+        self.__weights = copy.deepcopy(self.__initial_weights)
 
         activations = []
 
@@ -34,7 +51,12 @@ class LogisticNeuralNetwork(Classifier):
 
         self.__activations = activations
 
+        self.__gradients = self.__gen_gradients_struct()
+        self.__previous_gradients = self.__gen_gradients_struct()
+
+    def __gen_gradients_struct(self):
         gradients = []
+
         for weights_per_layer in self.__weights:
             gradients_per_layer = []
             for weights_per_neuron in weights_per_layer:
@@ -43,9 +65,7 @@ class LogisticNeuralNetwork(Classifier):
 
             gradients.append(gradients_per_layer)
 
-        self.__gradients = gradients
-
-        self.__train(data_handler)
+        return gradients
 
     def __numerical_validation(self, data_handler):
         # Store a copy of the current weights
@@ -87,19 +107,34 @@ class LogisticNeuralNetwork(Classifier):
             else:
                 errors = np.array(np.sum(layer_error))
 
-        print("\nFinal gradients:\n" + str(np.array(self.__gradients)))
+        logger.debug("\nFinal gradients:\n" + str(np.array(self.__gradients)))
 
-        print("\nFinal numerical gradients:\n" + str(np.array(numerical_gradients)))
+        logger.debug("\nFinal numerical gradients:\n" + str(np.array(numerical_gradients)))
 
-        print("\nDifference between gradient via backpropagation & numerical gradient:\n" + str(errors))
+        logger.debug("\nDifference between gradient via backpropagation & numerical gradient:\n" + str(errors))
 
     def __train(self, data_handler):
-        self.__numerical_validation(data_handler)
+        if len(data_handler.as_instances()) > self.__ins_per_batch:
+            batches = data_handler.stratify(round(len(data_handler.as_instances()) / self.__ins_per_batch))
+        else:
+            batches = [data_handler.as_instances()]
 
-        # while not self.__stop():
-        #    self.__backpropagation(data_handler)
+        stop = False
 
-        # print("\nFinal gradients:\n" + str(np.array(self.__gradients)))
+        previous_error = 0
+        num_examples = 0
+
+        while not stop:
+            for minBatch in batches:
+                self.__backpropagation(minBatch)
+                self.__previous_gradients = copy.deepcopy(self.__gradients)
+                self.__gradients = self.__gen_gradients_struct()
+
+            current_error = self.__total_cost(data_handler.as_instances())
+            num_examples += len(data_handler.as_instances())
+            print("%d;%.5f" % (num_examples, current_error))
+            stop = math.fabs(current_error - previous_error) < 0.0001
+            previous_error = current_error
 
     def __instance_cost(self, instance):
         fw = self.__propagate(instance[0])
@@ -111,8 +146,7 @@ class LogisticNeuralNetwork(Classifier):
 
         return j_instance
 
-    def __total_cost(self, data_handler):
-        instances = data_handler.as_instances()
+    def __total_cost(self, instances):
         j = None
 
         for instance in instances:
@@ -123,10 +157,10 @@ class LogisticNeuralNetwork(Classifier):
             else:
                 j = np.array(j_instance)
 
-        print("\nCosts without regularization:" + str(j))
+        logger.debug("\nCosts without regularization:" + str(j))
         j = np.sum(j)/len(instances)
 
-        # print("\nActivations:\n" + str(self.__activations))
+        # logger.debug("\nActivations:\n" + str(self.__activations))
 
         s = 0
 
@@ -137,7 +171,7 @@ class LogisticNeuralNetwork(Classifier):
 
         s = (self.__regularization_factor / (2 * len(instances))) * s
 
-        print("Total cost(with regularization):" + str(j + s))
+        logger.debug("Total cost(with regularization):" + str(j + s))
         return j + s
 
     def __propagate(self, instance):
@@ -172,16 +206,15 @@ class LogisticNeuralNetwork(Classifier):
     def __activation(self, z):
         return 1 / (1 + math.exp(-z))
 
-    def __backpropagation(self, data_handler):
+    def __backpropagation(self, instances):
         last_layer = len(self.__activations) - 1
-        print("\nStarting back propagation")
-        instances = data_handler.as_instances()
+        logger.debug("\nStarting back propagation")
 
         for instance in instances:
-            print("\nInstance:" + str(instance))
+            logger.debug("\nInstance:" + str(instance))
             # Propagate instance
             fw = self.__propagate(instance[0])
-            print("\nOutput after propagating instance:" + str(fw))
+            logger.debug("\nOutput after propagating instance:" + str(fw))
 
             deltas = []
             deltas_out = []
@@ -208,14 +241,14 @@ class LogisticNeuralNetwork(Classifier):
                 deltas.append(delta_in)
 
             deltas.reverse()
-            print("\nDeltas for this instance:\n" + str(deltas))
+            logger.debug("\nDeltas for this instance:\n" + str(deltas))
 
             # Update gradient for each weight in each layer
             for k in range(last_layer - 1, -1, -1):
                 delt = np.array(deltas[k])
                 act = np.array(self.__activations[k])
                 d_aux = np.outer(delt, act)
-                print("\nGradients on layer " + str(k) + "for this instance:\n" + str(d_aux))
+                logger.debug("\nGradients on layer " + str(k) + "for this instance:\n" + str(d_aux))
                 d_aux = np.array(self.__gradients[k]) + d_aux
                 self.__gradients[k] = d_aux.tolist()
 
@@ -230,15 +263,15 @@ class LogisticNeuralNetwork(Classifier):
 
         # Update weights in each layer
         for k in range(last_layer - 1, -1, -1):
-            weights = np.array(self.__weights[k]) - np.array(self.__gradients[k]) * self.__alpha
+            factor = self.__beta * np.array(self.__previous_gradients[k]) + np.array(self.__gradients[k])
+            weights = np.array(self.__weights[k]) - self.__alpha * factor
+
             self.__weights[k] = weights.tolist()
 
-    def __stop(self):
-        stop = False
-
+    def __calculate_gradient_rms(self):
         gradient_mean_square = 0
         number_of_gradients = 0
-        for layer in self.__gradients:
+        for layer in self.__previous_gradients:
             for neuron in layer:
                 for gradient in neuron:
                     gradient_mean_square += gradient ** 2
@@ -246,11 +279,31 @@ class LogisticNeuralNetwork(Classifier):
 
         gradient_rms = math.sqrt(gradient_mean_square / number_of_gradients)
 
-        # Root mean square of all gradients must be less than 0.0001 to stop back propagating
-        if gradient_rms < 0.0001:
-            stop = True
+        return gradient_rms
 
-        return stop
+    def classify(self, train_data_handler, test_instances):
+        self.__reset()
 
-    def classify(self, test_data_handler, test_instances):
-        raise NotImplementedError
+        self.__train(train_data_handler)
+
+        classified_instances = []
+
+        for instance in test_instances:
+            result = self.__propagate(instance)
+
+            if len(train_data_handler.classes()) == 2:
+                result = (float(round(result[0])),)
+            else:
+                idx_max = np.argmax(result)
+
+                for idx_prev in range(0, len(result)):
+                    if idx_max == idx_prev:
+                        result[idx_max] = 1.0
+                    else:
+                        result[idx_prev] = 0.0
+
+                result = tuple(result)
+
+            classified_instances.append((instance, result))
+
+        return classified_instances

@@ -1,7 +1,9 @@
 #! /usr/bin/python
 
 from __future__ import division
+import copy
 from .classes.measure import Measure
+from data.handler import DataHandler
 
 
 def repeated_crossvalidation(num_repetitions, num_folds, data_handler, algorithm):
@@ -39,18 +41,24 @@ def crossvalidation(num_folds, data_handler, algorithm):
     folds = data_handler.stratify(num_folds)
 
     for index_fold, fold in enumerate(folds):
-        aux_folds = list(folds)  # Copy the folds
-        test_fold = [aux_folds.pop(index_fold)]
-
-        test_handler = data_handler.fold_handler(test_fold)
-        train_handler = data_handler.fold_handler(aux_folds)
+        aux_folds = copy.deepcopy(folds)  # Copy the folds
+        test_fold = aux_folds.pop(index_fold)
 
         # Train the algorithm & classify the test fold
-        test_instances = [instance[0] for instance in test_handler.as_instances()]
+        train_instances = []
+
+        for aux_fold in aux_folds:
+            for instance in aux_fold:
+                train_instances.append(instance)
+
+        test_instances = [instance[0] for instance in test_fold]
+        train_handler = DataHandler(train_instances)
+        test_handler = DataHandler(test_fold)
+
         classified_instances = algorithm.classify(train_handler, test_instances)
 
         measure = Measure()
-        measure.calculate(test_handler.as_instances(), classified_instances, train_handler.possible_classes())
+        measure.calculate(test_handler.as_instances(), classified_instances, data_handler.classes())
 
         measures["acc"].append(measure.accuracy)
         measures["f1-measure"].append(measure.f_measure(1))
