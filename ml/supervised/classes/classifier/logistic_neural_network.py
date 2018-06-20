@@ -34,6 +34,13 @@ class LogisticNeuralNetwork(Classifier):
         self.__beta = beta
         self.__ins_per_batch = ins_per_batch
 
+        print("Parametro de regularizacao lambda=" + str(self.__regularization_factor))
+        print("Inicializando rede com a seguinte estrutura de neuronios por camada: " + str(self.__layers))
+        for i, layer in enumerate(self.__weights):
+            print("\nTheta" + str(i + 1) + " inicial (pesos de cada neuronio, incluindo bias, armazenados nas linhas):")
+            print('\n'.join([''.join(['\t{:8}'.format(item) for item in row])
+                             for row in np.around(np.array(layer), decimals=5)]))
+
         self.__reset()
 
     def __reset(self):
@@ -65,11 +72,22 @@ class LogisticNeuralNetwork(Classifier):
 
             gradients.append(gradients_per_layer)
 
+
         return gradients
 
-    def __numerical_validation(self, data_handler):
+    def numerical_validation(self, data_handler):
+        print("Conjunto de treinamento")
+        for i, instance in enumerate(data_handler.as_instances()):
+            print("\tExemplo " + str(i))
+            print("\t\tx: " + str(instance[0]))
+            print("\t\ty: " + str(instance[1]))
+
+        print("\n")
+
+        self.__total_cost(data_handler, True)
+
         # Store a copy of the current weights
-        aux_weights = list(self.__weights)
+        aux_weights = copy.deepcopy(self.__weights)
 
         numerical_gradients = []
         for weights_per_layer in self.__weights:
@@ -81,6 +99,7 @@ class LogisticNeuralNetwork(Classifier):
 
                     weights_per_neuron[i_weight] = current_weight + self.__epsilon
                     JplusE = self.__total_cost(data_handler)
+
                     weights_per_neuron[i_weight] = current_weight - self.__epsilon
                     JminusE = self.__total_cost(data_handler)
 
@@ -95,9 +114,19 @@ class LogisticNeuralNetwork(Classifier):
         # Return weights to normal
         self.__weights = aux_weights
 
-        self.__backpropagation(data_handler)
+        self.backpropagation(data_handler, True)
+
+        print("--------------------------------------------")
+        print("Rodando verificacao numerica de gradientes (epsilon=" + str(self.__epsilon))
+        for i, layer in enumerate(numerical_gradients):
+            print("\tGradiente numerico de Theta" + str(i+1) + ":")
+            print('\n'.join([''.join(['\t\t{:8}'.format(item) for item in row])
+                             for row in np.around(np.array(layer), decimals=5)]))
+        print("\n")
 
         errors = None
+        print("--------------------------------------------")
+        print("Verificando corretude dos gradientes com base nos gradientes numericos")
         for layer, ng_layer in zip(self.__gradients, numerical_gradients):
             layer_error = np.array(layer) - np.array(ng_layer)
             layer_error = np.fabs(layer_error)
@@ -107,11 +136,8 @@ class LogisticNeuralNetwork(Classifier):
             else:
                 errors = np.array(np.sum(layer_error))
 
-        logger.debug("\nFinal gradients:\n" + str(np.array(self.__gradients)))
-
-        logger.debug("\nFinal numerical gradients:\n" + str(np.array(numerical_gradients)))
-
-        logger.debug("\nDifference between gradient via backpropagation & numerical gradient:\n" + str(errors))
+        for i, layer in enumerate(errors):
+            print("\tErro entre gradiente via backprop e gradiente numerico para Theta" + str(i+1) + ": " + str(round(layer, 10)))
 
     def __train(self, data_handler):
         if len(data_handler.as_instances()) > self.__ins_per_batch:
@@ -123,7 +149,6 @@ class LogisticNeuralNetwork(Classifier):
 
         previous_error = 0
         num_examples = 0
-
         while not stop:
             for minBatch in batches:
                 self.__backpropagation(minBatch)
@@ -136,31 +161,45 @@ class LogisticNeuralNetwork(Classifier):
             stop = math.fabs(current_error - previous_error) < 0.0001
             previous_error = current_error
 
-    def __instance_cost(self, instance):
-        fw = self.__propagate(instance[0])
-        j_instance = 0
+    def __instance_cost(self, instance, v=False):
+        if v:
+            print("\tPropagando entrada " + str(instance[0]))
 
+        fw = self.__propagate(instance[0], v)
+
+        if v:
+            print("\n\t\tf(x):" + str(np.around(np.array(fw), decimals=5)))
+
+            print("\tSaida predita para o exemplo: " + str(np.around(np.array(fw), decimals=5)))
+            print("\tSaida esperada para o exemplo: " + str(instance[0]))
+
+        j_instance = 0
         for i, output in enumerate(fw):
             j_instance = j_instance \
                             - instance[1][i] * math.log(output) - (1 - instance[1][i]) * math.log(1 - output)
 
         return j_instance
 
-    def __total_cost(self, instances):
+    def __total_cost(self, instances, v=False):
         j = None
 
-        for instance in instances:
-            j_instance = self.__instance_cost(instance)
+        if v:
+            print("--------------------------------------------")
+            print("Calculando erro/custo J da rede");
+
+        for i, instance in enumerate(instances):
+            if v:
+                print("\tProcessando exemplo de treinamento " + str(i+1))
+            j_instance = self.__instance_cost(instance, v)
+            if v:
+                print("\tJ do exemplo " + str(i+1) + ": " + str(round(j_instance, 3)) + "\n")
 
             if j is not None:
                 j = np.append(j, j_instance)
             else:
                 j = np.array(j_instance)
 
-        logger.debug("\nCosts without regularization:" + str(j))
         j = np.sum(j)/len(instances)
-
-        # logger.debug("\nActivations:\n" + str(self.__activations))
 
         s = 0
 
@@ -171,26 +210,35 @@ class LogisticNeuralNetwork(Classifier):
 
         s = (self.__regularization_factor / (2 * len(instances))) * s
 
-        logger.debug("Total cost(with regularization):" + str(j + s))
+        if v:
+            print("J total do dataset (com regularizacao):" + str(round((j + s), 5)))
+            print("\n")
+
         return j + s
 
-    def __propagate(self, instance):
+    def __propagate(self, instance, v=False):
         self.__activations[0] = list(instance)
 
         # Add the bias
         self.__activations[0].insert(0, 1.0)
+        if v:
+            print("\t\ta1: " + str(self.__activations[0]))
 
         for i_hl in range(1, len(self.__activations) - 1):
             weights = np.array(self.__weights[i_hl - 1])
             act = np.array(self.__activations[i_hl - 1])
             terms = weights.dot(act)
             zs = terms.tolist()
+            if v:
+                print("\n\t\tz" + str(i_hl + 1) + ": " + str(np.around(np.array(zs), decimals=5)))
 
             # Applies sigmoid
             self.__activations[i_hl] = [self.__activation(z) for z in zs]
 
             # Add the bias
             self.__activations[i_hl].insert(0, 1.0)
+            if v:
+                print("\t\ta" + str(i_hl + 1) + ": " + str(np.around(np.array(self.__activations[i_hl]), decimals=5)))
 
         i_ol = len(self.__activations) - 1
 
@@ -198,23 +246,32 @@ class LogisticNeuralNetwork(Classifier):
         act = np.array(self.__activations[i_ol - 1])
         terms = weights.dot(act)
         zs = terms.tolist()
+        if v:
+            print("\n\t\tz" + str(i_ol + 1) + ": " + str(np.around(np.array(zs), decimals=5)))
 
         self.__activations[i_ol] = [self.__activation(z) for z in zs]
+        if v:
+            print("\t\ta" + str(i_ol + 1) + ": " + str(np.around(np.array(self.__activations[i_ol]), decimals=5)))
 
         return self.__activations[i_ol]
 
     def __activation(self, z):
         return 1 / (1 + math.exp(-z))
 
-    def __backpropagation(self, instances):
+    def backpropagation(self, data_handler, v=False):
+        if v:
+            print("--------------------------------------------")
         last_layer = len(self.__activations) - 1
-        logger.debug("\nStarting back propagation")
+        if v:
+            print("Rodando backpropagation")
+        instances = data_handler.as_instances()
 
-        for instance in instances:
-            logger.debug("\nInstance:" + str(instance))
+        for i, instance in enumerate(instances):
+            if v:
+                print("\tCalculando gradientes com base no exemplo " + str(i+1))
+
             # Propagate instance
             fw = self.__propagate(instance[0])
-            logger.debug("\nOutput after propagating instance:" + str(fw))
 
             deltas = []
             deltas_out = []
@@ -223,6 +280,8 @@ class LogisticNeuralNetwork(Classifier):
                 deltas_out.append(output - instance[1][i])
 
             deltas.append(deltas_out)
+            if v:
+                print("\t\tdelta" + str(last_layer + 1) + ": " + str(np.around(np.array(deltas[len(deltas) - 1]), decimals=5)))
 
             # Calculate neurons deltas for hidden layers
             for k in range(last_layer - 1, 0, -1):
@@ -239,19 +298,27 @@ class LogisticNeuralNetwork(Classifier):
                 delta_in = np.array(terms * a_terms).tolist()
                 delta_in.pop(0)
                 deltas.append(delta_in)
+                if v:
+                    print("\t\tdelta" + str(k + 1) + ": " + str(np.around(np.array(deltas[len(deltas) - 1]), decimals=5)))
 
             deltas.reverse()
-            logger.debug("\nDeltas for this instance:\n" + str(deltas))
 
             # Update gradient for each weight in each layer
             for k in range(last_layer - 1, -1, -1):
                 delt = np.array(deltas[k])
                 act = np.array(self.__activations[k])
                 d_aux = np.outer(delt, act)
-                logger.debug("\nGradients on layer " + str(k) + "for this instance:\n" + str(d_aux))
+
+                if v:
+                    print("\t\tGradientes de Theta " + str(k+1) + " com base no exemplo:" + str(i))
+                    print('\n'.join([''.join(['\t\t\t{:8}'.format(item) for item in row])
+                                 for row in np.around(np.array(d_aux), decimals=5)]))
+
                 d_aux = np.array(self.__gradients[k]) + d_aux
                 self.__gradients[k] = d_aux.tolist()
 
+            if v:
+                print("\n\tDataset completo processado. Calculando gradientes regularizados")
         # Apply regularization to calculated gradients
         for k in range(last_layer - 1, -1, -1):
             p_aux = np.array(self.__weights[k])
@@ -260,7 +327,13 @@ class LogisticNeuralNetwork(Classifier):
 
             d_aux = (np.array(self.__gradients[k]) + p_aux) / len(instances)
             self.__gradients[k] = d_aux.tolist()
+            if v:
+                print("\t\tGradientes finais para Theta" + str(k+1) + " (com regularizacao):")
+                print('\n'.join([''.join(['\t\t\t{:8}'.format(item) for item in row])
+                             for row in np.around(np.array(self.__gradients[k]), decimals=5)]))
 
+        if v:
+            print("\n")
         # Update weights in each layer
         for k in range(last_layer - 1, -1, -1):
             factor = self.__beta * np.array(self.__previous_gradients[k]) + np.array(self.__gradients[k])
