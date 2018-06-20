@@ -75,16 +75,16 @@ class LogisticNeuralNetwork(Classifier):
 
         return gradients
 
-    def numerical_validation(self, data_handler):
+    def numerical_validation(self, instances):
         print("Conjunto de treinamento")
-        for i, instance in enumerate(data_handler.as_instances()):
+        for i, instance in enumerate(instances):
             print("\tExemplo " + str(i))
             print("\t\tx: " + str(instance[0]))
             print("\t\ty: " + str(instance[1]))
 
         print("\n")
 
-        self.__total_cost(data_handler, True)
+        self.__total_cost(instances, True)
 
         # Store a copy of the current weights
         aux_weights = copy.deepcopy(self.__weights)
@@ -98,10 +98,10 @@ class LogisticNeuralNetwork(Classifier):
                     current_weight = weights_per_neuron[i_weight]
 
                     weights_per_neuron[i_weight] = current_weight + self.__epsilon
-                    JplusE = self.__total_cost(data_handler)
+                    JplusE = self.__total_cost(instances)
 
                     weights_per_neuron[i_weight] = current_weight - self.__epsilon
-                    JminusE = self.__total_cost(data_handler)
+                    JminusE = self.__total_cost(instances)
 
                     numerical_gradient = (JplusE - JminusE) / (2 * self.__epsilon)
                     gradients_per_neuron.append(numerical_gradient)
@@ -114,7 +114,7 @@ class LogisticNeuralNetwork(Classifier):
         # Return weights to normal
         self.__weights = aux_weights
 
-        self.backpropagation(data_handler, True)
+        self.backpropagation(instances, True)
 
         print("--------------------------------------------")
         print("Rodando verificacao numerica de gradientes (epsilon=" + str(self.__epsilon))
@@ -157,7 +157,7 @@ class LogisticNeuralNetwork(Classifier):
 
             current_error = self.__total_cost(data_handler.as_instances())
             num_examples += len(data_handler.as_instances())
-            print("%d;%.5f" % (num_examples, current_error))
+            logger.debug("N. example,curr. error: %d,%.5f" % (num_examples, current_error))
             stop = math.fabs(current_error - previous_error) < 0.0001
             previous_error = current_error
 

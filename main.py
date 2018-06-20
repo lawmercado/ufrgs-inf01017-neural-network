@@ -39,8 +39,10 @@ def setup_logger():
 if __name__ == '__main__':
     logger = setup_logger()
 
+    operations = ["backpropagation", "validation", "classification"]
+
     parser = argparse.ArgumentParser()
-    #parser.add_argument("operation", metavar="O", type=str, help="operation to be executed: 'backpropagation', 'validate', 'classify'")
+    parser.add_argument("operation", metavar="O", type=str, help="operation to be executed: " + str(operations))
     parser.add_argument("struct_file", metavar="N", type=str, help="network structure .txt file")
     parser.add_argument("weights_file", metavar="W", type=str, help="network initial weights .txt file")
     parser.add_argument("dataset_file", metavar="D", type=str, help="dataset .txt file")
@@ -59,67 +61,80 @@ if __name__ == '__main__':
     if args.verbose:
         logger.setLevel(logging.DEBUG)
 
-    print("Reading dataset file...")
+    if args.operation in operations:
+        print("Reading dataset file...")
 
-    data_handler = DataHandler(DataHandler.parse(args.dataset_file, args.normalize))
+        data_handler = DataHandler(DataHandler.parse(args.dataset_file, args.normalize))
 
-    print("\nReading strucuture files...\n")
+        print("\nReading strucuture files...\n")
 
-    regularization_factor = 0
-    layers = []
-    initial_weights = []
+        regularization_factor = 0
+        layers = []
+        initial_weights = []
 
-    with open(args.struct_file) as sf:
-        lines = [line.rstrip().lstrip() for line in sf.readlines()]
+        with open(args.struct_file) as sf:
+            lines = [line.rstrip().lstrip() for line in sf.readlines()]
 
-        regularization_factor = float(lines[0])
+            regularization_factor = float(lines[0])
 
-        for i in range(1, len(lines)):
-            layers.append(int(lines[i]))
+            for i in range(1, len(lines)):
+                layers.append(int(lines[i]))
 
-    with open(args.weights_file) as wf:
-        lines = [line.rstrip().lstrip() for line in wf.readlines()]
+        with open(args.weights_file) as wf:
+            lines = [line.rstrip().lstrip() for line in wf.readlines()]
 
-        if len(lines) > 0:
-            for idx, line in enumerate(lines):
-                layer_weights = line.split(";")
-                if len(layer_weights) != layers[idx + 1]:
-                    raise ImportError("Number of weights for the layer do not match with the number of neurons!")
+            if len(lines) > 0:
+                for idx, line in enumerate(lines):
+                    layer_weights = line.split(";")
+                    if len(layer_weights) != layers[idx + 1]:
+                        raise ImportError("Number of weights for the layer do not match with the number of neurons!")
 
-                parsed_layer_weights = []
+                    parsed_layer_weights = []
 
-                for n_weights in layer_weights:
-                    parsed_n_weights = [float(weight) for weight in n_weights.rstrip().lstrip().split(",")]
-                    parsed_layer_weights.append(parsed_n_weights)
+                    for n_weights in layer_weights:
+                        parsed_n_weights = [float(weight) for weight in n_weights.rstrip().lstrip().split(",")]
+                        parsed_layer_weights.append(parsed_n_weights)
 
-                    if len(parsed_n_weights) != (layers[idx] + 1):
-                        raise ImportError("Number of weights do not match with next layer neurons")
+                        if len(parsed_n_weights) != (layers[idx] + 1):
+                            raise ImportError("Number of weights do not match with next layer neurons")
 
-                initial_weights.append(parsed_layer_weights)
-        else:
-            r = 4 * ((6/(layers[0] + layers[len(layers) - 1]))**0.5)
+                    initial_weights.append(parsed_layer_weights)
+            else:
+                r = 4 * ((6/(layers[0] + layers[len(layers) - 1]))**0.5)
 
-            for idx_layer in range(0, len(layers) - 1):
-                weights = [random.uniform(-r, r) for _ in range(0, layers[idx_layer] + 1)]
-                layer_weights = [list(weights) for _ in range(0, layers[idx_layer + 1])]
+                for idx_layer in range(0, len(layers) - 1):
+                    weights = [random.uniform(-r, r) for _ in range(0, layers[idx_layer] + 1)]
+                    layer_weights = [list(weights) for _ in range(0, layers[idx_layer + 1])]
 
-                initial_weights.append(layer_weights)
+                    initial_weights.append(layer_weights)
 
-    alpha = 0.9
-    beta = 0.95
-    ins_per_batch = 50
+        alpha = 0.9
+        beta = 0.95
+        ins_per_batch = 50
 
-    if args.alpha is not None:
-        alpha = args.alpha
+        if args.alpha is not None:
+            alpha = args.alpha
 
-    if args.beta is not None:
-        beta = args.beta
+        if args.beta is not None:
+            beta = args.beta
 
-    if args.ins_per_batch is not None:
-        ins_per_batch = args.ins_per_batch
+        if args.ins_per_batch is not None:
+            ins_per_batch = args.ins_per_batch
 
-    print("Classifying...")
+        network = LogisticNeuralNetwork(layers, initial_weights, regularization_factor, alpha, beta, ins_per_batch)
 
-    data = crossvalidation(10, data_handler, LogisticNeuralNetwork(layers, initial_weights, regularization_factor, alpha, beta, ins_per_batch))
+        if args.operation == "classification":
+            print("\nClassifying...")
 
-    print(get_statistics(data))
+            data = crossvalidation(10, data_handler, network)
+
+            print(get_statistics(data))
+
+        elif args.operation == "backpropagation":
+            network.backpropagation(data_handler.as_instances(), True)
+
+        elif args.operation == "validation":
+            network.numerical_validation(data_handler.as_instances())
+
+    else:
+        raise IOError("Invalid operation")
