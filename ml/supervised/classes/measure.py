@@ -59,13 +59,19 @@ class Measure(object):
         try:
             # Micro average for 3 or more possible classes
             self.recall = total_true_positives / (total_true_positives + total_false_negatives)
-            self.precision = total_true_positives / (total_true_positives + total_false_positives)
         except ZeroDivisionError:
             self.recall = 0
+
+        try:
+            self.precision = total_true_positives / (total_true_positives + total_false_positives)
+        except ZeroDivisionError:
             self.precision = 0
 
     def f_measure(self, beta):
-        return ((beta**2 + 1) * self.precision * self.recall)/((beta**2) * self.precision + self.recall)
+        try:
+            return ((beta**2 + 1) * self.precision * self.recall)/((beta**2) * self.precision + self.recall)
+        except ZeroDivisionError:
+            return 0
 
     def __str__(self):
         text = "Acc: %s\nPrec: %s\nRec: %s\n"

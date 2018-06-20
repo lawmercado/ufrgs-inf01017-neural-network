@@ -141,7 +141,7 @@ class LogisticNeuralNetwork(Classifier):
 
     def __train(self, data_handler):
         if len(data_handler.as_instances()) > self.__ins_per_batch:
-            batches = data_handler.stratify(round(len(data_handler.as_instances()) / self.__ins_per_batch))
+            batches = data_handler.stratify(int(round(len(data_handler.as_instances()) / self.__ins_per_batch)))
         else:
             batches = [data_handler.as_instances()]
 
