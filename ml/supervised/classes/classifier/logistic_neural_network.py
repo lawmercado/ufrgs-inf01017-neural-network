@@ -151,7 +151,7 @@ class LogisticNeuralNetwork(Classifier):
         num_examples = 0
         while not stop:
             for minBatch in batches:
-                self.__backpropagation(minBatch)
+                self.backpropagation(minBatch)
                 self.__previous_gradients = copy.deepcopy(self.__gradients)
                 self.__gradients = self.__gen_gradients_struct()
 
@@ -258,13 +258,12 @@ class LogisticNeuralNetwork(Classifier):
     def __activation(self, z):
         return 1 / (1 + math.exp(-z))
 
-    def backpropagation(self, data_handler, v=False):
+    def backpropagation(self, instances, v=False):
         if v:
             print("--------------------------------------------")
         last_layer = len(self.__activations) - 1
         if v:
             print("Rodando backpropagation")
-        instances = data_handler.as_instances()
 
         for i, instance in enumerate(instances):
             if v:
