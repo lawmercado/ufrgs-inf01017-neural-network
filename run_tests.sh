@@ -20,4 +20,8 @@ python3 main.py --normalize --seed=5 classification test/ionosphere/network_lamd
 python3 main.py --normalize --seed=5 classification test/ionosphere/network_lamda3.txt test/ionosphere/weights.txt sets/ionosphere.txt > test/ionosphere/test6.txt &
 
 python3 main.py --normalize --seed=5 classification test/cancer/network1.txt test/cancer/weights.txt sets/cancer.txt > test/cancer/test1.txt &
+python3 main.py --normalize --seed=5 classification test/cancer/network2.txt test/cancer/weights.txt sets/cancer.txt > test/cancer/test2.txt &
+python3 main.py --normalize --seed=5 classification test/cancer/network3.txt test/cancer/weights.txt sets/cancer.txt > test/cancer/test3.txt &
+python3 main.py --normalize --seed=5 classification test/cancer/network_lamda1.txt test/cancer/weights.txt sets/cancer.txt > test/cancer/test4.txt &
+python3 main.py --normalize --seed=5 classification test/cancer/network_lamda2.txt test/cancer/weights.txt sets/cancer.txt > test/cancer/test5.txt &
 python3 main.py --normalize --seed=5 classification test/cancer/network_lamda3.txt test/cancer/weights.txt sets/cancer.txt > test/cancer/test6.txt &
