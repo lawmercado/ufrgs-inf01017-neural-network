@@ -79,8 +79,8 @@ class LogisticNeuralNetwork(Classifier):
         print("Conjunto de treinamento")
         for i, instance in enumerate(instances):
             print("\tExemplo " + str(i))
-            print("\t\tx: " + str(instance[0]))
-            print("\t\ty: " + str(instance[1]))
+            print("\t\tx: " + str(list(instance[0])))
+            print("\t\ty: " + str(list(instance[1])))
 
         print("\n")
 
@@ -141,7 +141,7 @@ class LogisticNeuralNetwork(Classifier):
 
     def __train(self, data_handler):
         if len(data_handler.as_instances()) > self.__ins_per_batch:
-            batches = data_handler.stratify(int(round(len(data_handler.as_instances()) / self.__ins_per_batch)))
+            batches = data_handler.stratify(round(len(data_handler.as_instances()) / self.__ins_per_batch))
         else:
             batches = [data_handler.as_instances()]
 
@@ -157,13 +157,13 @@ class LogisticNeuralNetwork(Classifier):
 
             current_error = self.__total_cost(data_handler.as_instances())
             num_examples += len(data_handler.as_instances())
-            print("%d,%.5f" % (num_examples, current_error))
+            logger.debug("N. example,curr. error: %d,%.5f" % (num_examples, current_error))
             stop = math.fabs(current_error - previous_error) < 0.0001
             previous_error = current_error
 
     def __instance_cost(self, instance, v=False):
         if v:
-            print("\tPropagando entrada " + str(instance[0]))
+            print("\tPropagando entrada " + str(list(instance[0])))
 
         fw = self.__propagate(instance[0], v)
 
@@ -171,7 +171,7 @@ class LogisticNeuralNetwork(Classifier):
             print("\n\t\tf(x):" + str(np.around(np.array(fw), decimals=5)))
 
             print("\tSaida predita para o exemplo: " + str(np.around(np.array(fw), decimals=5)))
-            print("\tSaida esperada para o exemplo: " + str(instance[0]))
+            print("\tSaida esperada para o exemplo: " + str(list(instance[1])))
 
         j_instance = 0
         for i, output in enumerate(fw):
@@ -316,8 +316,8 @@ class LogisticNeuralNetwork(Classifier):
                 d_aux = np.array(self.__gradients[k]) + d_aux
                 self.__gradients[k] = d_aux.tolist()
 
-            if v:
-                print("\n\tDataset completo processado. Calculando gradientes regularizados")
+        if v:
+            print("\n\tDataset completo processado. Calculando gradientes regularizados")
         # Apply regularization to calculated gradients
         for k in range(last_layer - 1, -1, -1):
             p_aux = np.array(self.__weights[k])
@@ -326,10 +326,12 @@ class LogisticNeuralNetwork(Classifier):
 
             d_aux = (np.array(self.__gradients[k]) + p_aux) / len(instances)
             self.__gradients[k] = d_aux.tolist()
+
+        for k in range(last_layer):
             if v:
                 print("\t\tGradientes finais para Theta" + str(k+1) + " (com regularizacao):")
                 print('\n'.join([''.join(['\t\t\t{:8}'.format(item) for item in row])
-                             for row in np.around(np.array(self.__gradients[k]), decimals=5)]))
+                                 for row in np.around(np.array(self.__gradients[k]), decimals=5)]))
 
         if v:
             print("\n")
