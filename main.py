@@ -58,9 +58,9 @@ if __name__ == '__main__':
 
     data_handler = DataHandler(DataHandler.parse(args.dataset_file, args.normalize))
 
-    print(data_handler)
+    # print(data_handler)
 
-    print("Reading strucuture files...")
+    print("\nReading strucuture files...\n")
 
     regularization_factor = 0
     layers = []
