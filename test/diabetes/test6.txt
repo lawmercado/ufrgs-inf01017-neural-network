@@ -1,5 +1,23 @@
 Reading dataset file...
+
 Reading strucuture files...
+
+Parametro de regularizacao lambda=0.8
+Inicializando rede com a seguinte estrutura de neuronios por camada: [8, 4, 2, 1]
+
+Theta1 inicial (pesos de cada neuronio, incluindo bias, armazenados nas linhas):
+	 0.80279	 1.57935	  1.9282	 2.89007	 1.56701	 2.75862	-3.07652	-0.22455	 2.89599
+	 0.80279	 1.57935	  1.9282	 2.89007	 1.56701	 2.75862	-3.07652	-0.22455	 2.89599
+	 0.80279	 1.57935	  1.9282	 2.89007	 1.56701	 2.75862	-3.07652	-0.22455	 2.89599
+	 0.80279	 1.57935	  1.9282	 2.89007	 1.56701	 2.75862	-3.07652	-0.22455	 2.89599
+
+Theta2 inicial (pesos de cada neuronio, incluindo bias, armazenados nas linhas):
+	  0.9731	 2.61867	-2.52653	-0.20204	-1.65538
+	  0.9731	 2.61867	-2.52653	-0.20204	-1.65538
+
+Theta3 inicial (pesos de cada neuronio, incluindo bias, armazenados nas linhas):
+	 0.28584	 0.48298	-3.18032
+
 Classifying...
 691,0.66942
 1382,0.63655
